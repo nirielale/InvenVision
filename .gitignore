@@ -21,3 +21,6 @@ ml/datasets/
 .DS_Store
 Thumbs.db
 ml/tessdata/*.traineddata
+
+# Respaldo original con datos personales: NO subir (usar invenvision_backup_compartible.sql)
+database/invenvision_backup.sql
