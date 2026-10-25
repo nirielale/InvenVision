@@ -1,0 +1,33 @@
+# Secretos y configuración local
+.env
+**/.env
+*.env
+!.env.example
+
+# Control de versiones y entornos
+.git
+.gitignore
+venv
+.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+
+# Respaldos y datos (nunca dentro de la imagen)
+database
+**/*.sql
+backend/uploads
+ml
+
+# Documentos personales y de tesis
+*.pdf
+Tesis*
+docs
+
+# Pruebas, documentación y herramientas de desarrollo
+backend/tests
+backend/pytest.ini
+backend/requirements-dev.txt
+README.md
+.vscode
+.idea

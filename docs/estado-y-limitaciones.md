@@ -22,6 +22,12 @@
 4. **Interfaz completa**: solo se recorrió el flujo del escáner (y su paso por historial y alertas) contra una base SQLite de prueba; el resto
    de pantallas, los gráficos y el diseño responsive siguen sin revisarse en un navegador.
 
+## Despliegue (preparado, sin publicar)
+Verificado: arranque real de uvicorn en modo producción con el mismo comando del Dockerfile (puerto de `PORT`, sin `/docs`, registro 403, error claro
+si `JWT_SECRET` es corto), detección de idiomas de Tesseract simulando la instalación de Linux y la lista de archivos que copia el Dockerfile.
+**No verificado:** la construcción de la imagen (no hay Docker en el equipo de desarrollo), Tesseract en Debian (`tesseract-ocr-spa`), el montaje del
+volumen y el despliegue en Railway. Ver `docs/despliegue-railway.md`.
+
 ## Limitaciones conocidas
 - Fechas con etiqueta en la línea anterior (`VENC:` arriba, fecha abajo) se clasifican como «sin etiqueta».
 - Errores típicos de OCR (`O` por `0`, `l` por `1`) no se corrigen automáticamente.

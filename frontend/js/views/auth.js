@@ -35,7 +35,16 @@ function errorAuth(root, msg) {
   box.classList.remove("d-none");
 }
 
-export function renderLogin(root) {
+/** Pregunta al servidor si el registro público está habilitado (en producción suele estar desactivado). */
+async function registroHabilitado() {
+  try {
+    const r = await fetch("/api/config");
+    return r.ok ? Boolean((await r.json()).registro_habilitado) : true;
+  } catch { return true; }
+}
+
+export async function renderLogin(root) {
+  const registro = await registroHabilitado();
   root.innerHTML = tarjeta("InvenVision", "Inicie sesión para continuar", `
     <form id="f" novalidate>
       <label class="form-label" for="email">Correo electrónico</label>
@@ -43,7 +52,7 @@ export function renderLogin(root) {
         <div class="invalid-feedback">Ingrese un correo válido.</div></div>
       ${campoPassword("password", "Contraseña")}
       <button class="btn btn-primary w-100" id="submit"><span class="spinner-border spinner-border-sm d-none me-2"></span>Iniciar sesión</button>
-    </form>`, `¿No tiene cuenta? <a href="#/registro">Regístrese</a>`);
+    </form>`, registro ? `¿No tiene cuenta? <a href="#/registro">Regístrese</a>` : "Las cuentas nuevas las crea un administrador.");
   activarOjos(root);
   const f = root.querySelector("#f");
   f.onsubmit = async (ev) => {
@@ -63,7 +72,13 @@ export function renderLogin(root) {
   };
 }
 
-export function renderRegistro(root) {
+export async function renderRegistro(root) {
+  if (!(await registroHabilitado())) {
+    root.innerHTML = tarjeta("Registro no disponible", "El registro público está deshabilitado",
+      `<div class="alert alert-info mb-0">Solicite una cuenta a un administrador de InvenVision.</div>`,
+      `<a href="#/login">Volver a iniciar sesión</a>`);
+    return;
+  }
   root.innerHTML = tarjeta("Crear cuenta", "Regístrese como operador", `
     <form id="f" novalidate>
       <div class="mb-3"><label class="form-label" for="nombre">Nombre completo</label>

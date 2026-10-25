@@ -1,6 +1,7 @@
 """Validación, preprocesamiento y OCR de imágenes de etiquetas."""
 import os
 import shutil
+from functools import lru_cache
 from pathlib import Path
 
 import cv2
@@ -79,14 +80,43 @@ def _localizar_tesseract() -> str | None:
 TESSDATA_LOCAL = Path(__file__).resolve().parents[3] / "ml" / "tessdata"
 
 
-def _idiomas() -> str:
-    """Usa los datos de idioma del proyecto (ml/tessdata) si incluyen español; si no, los del sistema."""
-    if (TESSDATA_LOCAL / "spa.traineddata").is_file():
+IDIOMAS_DESEADOS = ("spa", "eng")
+
+
+def _preparar_tessdata_local() -> None:
+    """Si el proyecto trae sus propios datos de idioma (ml/tessdata, solo desarrollo en Windows), se usan."""
+    if all((TESSDATA_LOCAL / f"{i}.traineddata").is_file() for i in IDIOMAS_DESEADOS):
         os.environ["TESSDATA_PREFIX"] = str(TESSDATA_LOCAL)
-        return "spa+eng"
+
+
+@lru_cache(maxsize=8)
+def _listar_idiomas(ruta: str, tessdata_prefix: str) -> tuple[str, ...]:
+    """Idiomas que Tesseract realmente tiene instalados (`tesseract --list-langs`); vale en Windows y Linux.
+
+    Los argumentos solo sirven de clave de la caché: se vuelve a consultar si cambia el ejecutable o TESSDATA_PREFIX.
+    """
+    import pytesseract
+
+    pytesseract.pytesseract.tesseract_cmd = ruta
+    try:
+        return tuple(pytesseract.get_languages(config=""))
+    except Exception:
+        return ()
+
+
+def idiomas_instalados() -> list[str]:
     ruta = _localizar_tesseract()
-    sistema = Path(ruta).parent / "tessdata" if ruta else None
-    return "spa+eng" if sistema and (sistema / "spa.traineddata").is_file() else "eng"
+    if ruta is None:
+        return []
+    _preparar_tessdata_local()
+    return list(_listar_idiomas(ruta, os.environ.get("TESSDATA_PREFIX", "")))
+
+
+def _idiomas() -> str:
+    """Parámetro `lang` para Tesseract: español + inglés si están instalados; si falta alguno, los que haya."""
+    instalados = idiomas_instalados()
+    elegidos = [i for i in IDIOMAS_DESEADOS if i in instalados]
+    return "+".join(elegidos) or "eng"
 
 
 def ocr_disponible() -> bool:

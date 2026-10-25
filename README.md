@@ -28,7 +28,7 @@ Sistema de gestión de inventario con detección de fechas de vencimiento median
 cd Tesis_InvenVision
 python -m venv venv
 .\venv\Scripts\Activate.ps1
-pip install -r backend\requirements.txt
+pip install -r backend\requirements-dev.txt
 copy .env.example .env
 notepad .env
 ```
@@ -74,3 +74,8 @@ python -m scripts.datos_demo --confirmar --quitar   # quita solo los DEMO-xxx
 1. Inicie sesión con el administrador. 2. Revise **Categorías**. 3. Registre un producto con fecha de vencimiento cercana.
 4. En **Escáner**, suba una foto de etiqueta (o use la cámara), revise las fechas candidatas, corrija si hace falta y confirme.
 5. Compruebe **Alertas**, **Dashboard**, **Reportes** e **Historial**. 6. En **Perfil**, cambie los días de anticipación y observe cómo cambian los estados.
+
+## Despliegue (Railway / Docker)
+Hay `Dockerfile`, `.dockerignore` y `railway.json`. En producción (`ENVIRONMENT=production`) `JWT_SECRET` es obligatorio (mín. 32 caracteres),
+no se publican `/docs` ni `/openapi.json` y el registro público queda deshabilitado salvo `ALLOW_REGISTRATION=true`. Las fotos y escaneos se
+guardan en `UPLOAD_DIR` (por defecto `backend/uploads`; en Railway, un volumen). Guía completa: [`docs/despliegue-railway.md`](docs/despliegue-railway.md).

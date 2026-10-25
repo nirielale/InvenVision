@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -23,8 +23,10 @@ def login(datos: LoginIn, db: Session = Depends(get_db)):
 
 
 @router.post("/register", response_model=UsuarioOut, status_code=201)
-def registro(datos: RegistroIn, db: Session = Depends(get_db)):
-    """Registro público: siempre crea un usuario con rol operador."""
+def registro(datos: RegistroIn, request: Request, db: Session = Depends(get_db)):
+    """Registro público: siempre crea un usuario con rol operador. Se puede desactivar (ALLOW_REGISTRATION=false)."""
+    if not request.app.state.settings.registro_habilitado:
+        raise HTTPException(403, "El registro público está deshabilitado. Solicite una cuenta a un administrador.")
     user = Usuario(
         nombre=datos.nombre, email=datos.email.lower(),
         password_hash=hash_password(datos.password), rol=ROL_OPERADOR, activo=True,

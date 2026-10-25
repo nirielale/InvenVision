@@ -3,12 +3,12 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.config import ROOT_DIR
+from app.config import settings
 from app.models import ConfiguracionAlertas, Producto, Usuario
 from app.schemas import ProductoOut
 from app.services.expiry import clasificar
 
-UPLOAD_DIR = ROOT_DIR / "backend" / "uploads"
+UPLOAD_DIR = settings.upload_path  # configurable con UPLOAD_DIR
 DIAS_ALERTA_DEFECTO = 30
 
 

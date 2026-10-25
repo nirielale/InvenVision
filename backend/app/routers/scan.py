@@ -44,7 +44,12 @@ def _archivos_scan(scan_id: str, user: Usuario) -> tuple[Path, Path]:
 
 @router.get("/ocr/estado")
 def estado_ocr(_: Usuario = Depends(usuario_actual)):
-    return {"disponible": vision.ocr_disponible()}
+    idiomas = vision.idiomas_instalados()
+    return {
+        "disponible": vision.ocr_disponible(),
+        "idiomas": [i for i in vision.IDIOMAS_DESEADOS if i in idiomas],
+        "idiomas_faltantes": [i for i in vision.IDIOMAS_DESEADOS if i not in idiomas] if vision.ocr_disponible() else [],
+    }
 
 
 @router.post("/scan")
