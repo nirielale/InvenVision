@@ -15,10 +15,12 @@
 
 ## NO verificado
 1. **Inicio de sesión real**: se desconoce la contraseña del administrador existente; el hash es bcrypt (`$2b$`), compatible con el backend.
-2. **OCR con Tesseract**: no está instalado en el equipo; las pruebas del flujo usan un OCR simulado. No hay cifra de precisión.
-   Use `ml/evaluar_ocr.py` con fotos reales etiquetadas para medirla.
-3. **Interfaz en navegador**: los módulos JavaScript pasan la comprobación de sintaxis y se sirven bien, pero no se recorrió la interfaz
-   (cámara, gráficos, diseño responsive) en un navegador real.
+2. **Precisión del OCR en fotos reales**: Tesseract 5.4 está instalado y lee correctamente etiquetas *sintéticas* (texto de OpenCV, con ruido
+   y leve rotación). No hay cifra de precisión con fotos reales; use `ml/evaluar_ocr.py` con fotos etiquetadas para medirla.
+3. **Cámara física**: el flujo de cámara se probó en Chrome con una cámara *simulada* (vídeo de prueba), incluyendo permiso denegado y
+   ausencia de cámara. Falta probarlo con una cámara real (y el cambio entre varias cámaras, que requiere más de un dispositivo).
+4. **Interfaz completa**: solo se recorrió el flujo del escáner (y su paso por historial y alertas) contra una base SQLite de prueba; el resto
+   de pantallas, los gráficos y el diseño responsive siguen sin revisarse en un navegador.
 
 ## Limitaciones conocidas
 - Fechas con etiqueta en la línea anterior (`VENC:` arriba, fecha abajo) se clasifican como «sin etiqueta».

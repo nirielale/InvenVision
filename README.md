@@ -13,8 +13,15 @@ Sistema de gestión de inventario con detección de fechas de vencimiento median
 ## Requisitos (Windows)
 1. Python 3.11+
 2. MySQL en ejecución (servicio `MySQL93`, puerto 3306)
-3. [Tesseract OCR para Windows](https://github.com/UB-Mannheim/tesseract/wiki) con el idioma **Spanish** (necesario solo para escanear)
-4. Conexión a Internet en el navegador (Bootstrap, iconos y Chart.js se cargan desde CDN)
+3. Tesseract OCR para Windows (necesario solo para escanear): `winget install UB-Mannheim.TesseractOCR`. El idioma español se toma de
+   `ml/tessdata/spa.traineddata` (y `eng.traineddata`), que no se sube a Git; descárguelo con:
+   ```powershell
+   mkdir ml	essdata -Force
+   Invoke-WebRequest https://github.com/tesseract-ocr/tessdata_fast/raw/main/spa.traineddata -OutFile ml	essdata\spa.traineddata
+   Copy-Item "C:\Program Files\Tesseract-OCR	essdata\eng.traineddata" ml	essdata   ```
+   (Alternativa: instalar el idioma Spanish con el instalador gráfico de UB-Mannheim.)
+4. Para la cámara, abrir la aplicación desde `http://127.0.0.1:8000` o `localhost` (el navegador exige contexto seguro) y permitir el acceso.
+5. Conexión a Internet en el navegador (Bootstrap, iconos y Chart.js se cargan desde CDN)
 
 ## Instalación
 ```powershell

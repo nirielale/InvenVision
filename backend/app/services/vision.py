@@ -76,6 +76,19 @@ def _localizar_tesseract() -> str | None:
     return next((c for c in candidatos if c and Path(c).exists()), None)
 
 
+TESSDATA_LOCAL = Path(__file__).resolve().parents[3] / "ml" / "tessdata"
+
+
+def _idiomas() -> str:
+    """Usa los datos de idioma del proyecto (ml/tessdata) si incluyen español; si no, los del sistema."""
+    if (TESSDATA_LOCAL / "spa.traineddata").is_file():
+        os.environ["TESSDATA_PREFIX"] = str(TESSDATA_LOCAL)
+        return "spa+eng"
+    ruta = _localizar_tesseract()
+    sistema = Path(ruta).parent / "tessdata" if ruta else None
+    return "spa+eng" if sistema and (sistema / "spa.traineddata").is_file() else "eng"
+
+
 def ocr_disponible() -> bool:
     return _localizar_tesseract() is not None
 
@@ -91,8 +104,15 @@ def leer_texto(variantes: list[np.ndarray]) -> str:
     pytesseract.pytesseract.tesseract_cmd = ruta
     textos = []
     for v in variantes:
-        textos.append(pytesseract.image_to_string(v, lang="spa+eng", config="--psm 6"))
-    return "\n".join(textos)
+        textos.append(pytesseract.image_to_string(v, lang=_idiomas(), config="--psm 6"))
+    # Las variantes de preprocesado repiten líneas: se conserva la primera aparición de cada una
+    vistas, lineas = set(), []
+    for linea in "\n".join(textos).splitlines():
+        clave = " ".join(linea.split())
+        if clave and clave not in vistas:
+            vistas.add(clave)
+            lineas.append(linea.strip())
+    return "\n".join(lineas)
 
 
 def confianza_media(variantes: list[np.ndarray]) -> float | None:
@@ -106,7 +126,7 @@ def confianza_media(variantes: list[np.ndarray]) -> float | None:
         pytesseract.pytesseract.tesseract_cmd = ruta
         confs = []
         for v in variantes:
-            d = pytesseract.image_to_data(v, lang="spa+eng", config="--psm 6", output_type=pytesseract.Output.DICT)
+            d = pytesseract.image_to_data(v, lang=_idiomas(), config="--psm 6", output_type=pytesseract.Output.DICT)
             confs += [float(c) for c, w in zip(d["conf"], d["text"]) if w.strip() and float(c) >= 0]
         return round(sum(confs) / len(confs), 2) if confs else None
     except Exception:  # la confianza es informativa; no debe romper el escaneo

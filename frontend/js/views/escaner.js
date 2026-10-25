@@ -19,13 +19,17 @@ export async function escaner(root, { query, esActual }) {
     liberar(); archivo = null;
     root.innerHTML = `
       ${ocr.disponible ? "" : `<div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>
-        El motor OCR (Tesseract) no está instalado en este equipo, por lo que no se puede analizar imágenes. Consulte el README.</div>`}
+        El motor OCR (Tesseract) no está instalado en el servidor, por lo que no se pueden analizar imágenes. Consulte el README.</div>`}
       <div class="row g-3">
         <div class="col-lg-6"><div class="card h-100"><div class="card-header">1. Seleccione la imagen de la etiqueta</div><div class="card-body">
           <label class="form-label" for="archivo">Subir fotografía (JPEG, PNG o WEBP, máx. 8 MB)</label>
           <input type="file" id="archivo" class="form-control mb-3" accept="image/jpeg,image/png,image/webp">
-          <div class="d-flex gap-2 mb-3"><button class="btn btn-outline-primary" id="cam-on"><i class="bi bi-camera-video me-1"></i>Usar cámara</button>
-            <button class="btn btn-primary d-none" id="capturar"><i class="bi bi-record-circle me-1"></i>Capturar</button></div>
+          <div class="d-flex gap-2 flex-wrap mb-3" id="cam-barra">
+            <button class="btn btn-outline-primary" id="cam-on"><i class="bi bi-camera-video me-1"></i>Usar cámara</button>
+            <select id="cam-sel" class="form-select w-auto d-none" aria-label="Cámara"></select>
+            <button class="btn btn-primary d-none" id="capturar"><i class="bi bi-record-circle me-1"></i>Capturar</button>
+            <button class="btn btn-outline-secondary d-none" id="cam-off"><i class="bi bi-x-lg me-1"></i>Cancelar</button></div>
+          <div id="cam-error"></div>
           <video id="video" class="cam d-none" playsinline muted></video>
           <div id="vista"></div></div></div></div>
         <div class="col-lg-6"><div class="card h-100"><div class="card-header">2. Producto asociado (opcional)</div><div class="card-body">
@@ -43,25 +47,73 @@ export async function escaner(root, { query, esActual }) {
       archivo = blob;
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
-      vista.innerHTML = `<img src="${previewUrl}" class="scan-preview" alt="Vista previa">`;
+      vista.innerHTML = `<img src="${previewUrl}" class="scan-preview" alt="Vista previa"><div class="form-text mt-1">Revise que la fecha se vea nítida; si no, tome otra o suba otra imagen.</div>`;
       btn.disabled = !ocr.disponible;
     };
-    root.querySelector("#archivo").onchange = (ev) => { const f = ev.target.files[0]; if (f) { detenerCamara(); root.querySelector("#video").classList.add("d-none"); root.querySelector("#capturar").classList.add("d-none"); elegir(f); } };
-
-    const video = root.querySelector("#video");
-    root.querySelector("#cam-on").onclick = async () => {
-      if (!navigator.mediaDevices?.getUserMedia) { toast("Este navegador no permite usar la cámara (se requiere localhost o HTTPS).", "error"); return; }
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        video.srcObject = stream; await video.play();
-        video.classList.remove("d-none"); root.querySelector("#capturar").classList.remove("d-none"); vista.innerHTML = "";
-      } catch { toast("No se pudo acceder a la cámara. Revise los permisos del navegador.", "error"); }
+    const $ = (id) => root.querySelector(id);
+    const video = $("#video"), selCam = $("#cam-sel");
+    const mostrarCamara = (on) => {
+      video.classList.toggle("d-none", !on);
+      $("#capturar").classList.toggle("d-none", !on);
+      $("#cam-off").classList.toggle("d-none", !on);
+      $("#cam-on").classList.toggle("d-none", on);
+      if (!on) selCam.classList.add("d-none");
     };
-    root.querySelector("#capturar").onclick = () => {
+    const errorCamara = (msg) => { $("#cam-error").innerHTML = `<div class="alert alert-warning py-2"><i class="bi bi-camera-video-off me-2"></i>${esc(msg)}</div>`; };
+    const cerrarCamara = () => { detenerCamara(); video.srcObject = null; mostrarCamara(false); };
+
+    $("#archivo").onchange = (ev) => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) { toast("Formato no admitido. Use JPEG, PNG o WEBP.", "error"); ev.target.value = ""; return; }
+      cerrarCamara(); $("#cam-error").innerHTML = ""; elegir(f);
+    };
+
+    async function abrirCamara(deviceId) {
+      $("#cam-error").innerHTML = "";
+      if (!navigator.mediaDevices?.getUserMedia) {
+        errorCamara("Este navegador no permite usar la cámara (requiere abrir la aplicación desde localhost o HTTPS). Puede subir una imagen en su lugar.");
+        return;
+      }
+      detenerCamara();
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false,
+        });
+        video.srcObject = stream; await video.play();
+        vista.innerHTML = ""; archivo = null; btn.disabled = true;
+        mostrarCamara(true);
+        // Tras conceder el permiso el navegador ya revela los nombres de las cámaras
+        const camaras = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+        const actual = stream.getVideoTracks()[0]?.getSettings().deviceId;
+        selCam.innerHTML = camaras.map((c, i) => `<option value="${esc(c.deviceId)}" ${c.deviceId === actual ? "selected" : ""}>${esc(c.label || `Cámara ${i + 1}`)}</option>`).join("");
+        selCam.classList.toggle("d-none", camaras.length < 2);
+      } catch (e) {
+        mostrarCamara(false);
+        const motivos = {
+          NotAllowedError: "Se denegó el permiso de la cámara. Permítalo desde el icono del candado junto a la dirección y vuelva a intentar.",
+          SecurityError: "El navegador bloqueó la cámara por seguridad. Use http://127.0.0.1:8000 o HTTPS.",
+          NotFoundError: "No se encontró ninguna cámara en este equipo. Puede subir una imagen en su lugar.",
+          NotReadableError: "La cámara está siendo usada por otra aplicación. Ciérrela e intente de nuevo.",
+          OverconstrainedError: "La cámara seleccionada ya no está disponible. Elija otra o recargue.",
+        };
+        errorCamara(motivos[e.name] || `No se pudo iniciar la cámara (${e.name || "error desconocido"}).`);
+      }
+    }
+    $("#cam-on").onclick = () => abrirCamara();
+    selCam.onchange = () => abrirCamara(selCam.value);
+    $("#cam-off").onclick = cerrarCamara;
+    $("#capturar").onclick = () => {
+      if (!video.videoWidth) { toast("La cámara aún no está lista; espere un segundo.", "error"); return; }
       const c = document.createElement("canvas");
       c.width = video.videoWidth; c.height = video.videoHeight;
       c.getContext("2d").drawImage(video, 0, 0);
-      c.toBlob((b) => { if (b) { detenerCamara(); video.classList.add("d-none"); root.querySelector("#capturar").classList.add("d-none"); elegir(new File([b], "captura.jpg", { type: "image/jpeg" })); } }, "image/jpeg", 0.92);
+      c.toBlob((blob) => {
+        if (!blob) { toast("No se pudo tomar la fotografía. Intente de nuevo.", "error"); return; }
+        cerrarCamara();  // detiene las pistas de vídeo
+        elegir(new File([blob], "captura.jpg", { type: "image/jpeg" }));
+      }, "image/jpeg", 0.92);
     };
 
     btn.onclick = async () => {
@@ -73,7 +125,7 @@ export async function escaner(root, { query, esActual }) {
         if (!esActual()) return;
         paso2(r, root.querySelector("#producto").value);
       } catch (e) {
-        toast(e.message, "error");
+        toast(e.status === 503 ? "El motor OCR no está disponible en el servidor." : e.message, "error");
         btn.disabled = false; btn.innerHTML = '<i class="bi bi-search me-1"></i>Analizar imagen';
       }
     };
