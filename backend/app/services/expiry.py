@@ -1,5 +1,7 @@
 """Lógica central de estados de vencimiento. Única fuente de verdad del backend."""
-from datetime import date
+from datetime import date, timedelta
+
+from sqlalchemy import and_
 
 ESTADO_VENCIDO = "vencido"
 ESTADO_PROXIMO = "proximo"
@@ -31,3 +33,18 @@ def clasificar(
     if dias <= umbral_dias:
         return ESTADO_PROXIMO, dias
     return ESTADO_VIGENTE, dias
+
+
+def filtro_estado(columna, estado: str, umbral_dias: int, hoy: date | None = None):
+    """Condición SQL equivalente a `clasificar`, para filtrar y contar en la base."""
+    hoy = hoy or date.today()
+    limite = hoy + timedelta(days=umbral_dias)
+    if estado == ESTADO_VENCIDO:
+        return columna < hoy
+    if estado == ESTADO_PROXIMO:
+        return and_(columna >= hoy, columna <= limite)
+    if estado == ESTADO_VIGENTE:
+        return columna > limite
+    if estado == ESTADO_SIN_FECHA:
+        return columna.is_(None)
+    raise ValueError(f"Estado desconocido: {estado}")

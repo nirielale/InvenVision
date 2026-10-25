@@ -23,14 +23,14 @@ def override(fail):
 
 def test_health_ok():
     app.dependency_overrides[get_db] = override(False)
-    r = TestClient(app).get("/health")
+    r = TestClient(app).get("/api/health")
     assert r.status_code == 200
     assert r.json() == {"status": "ok", "database": "connected"}
 
 
 def test_health_db_caida_no_filtra_detalle():
     app.dependency_overrides[get_db] = override(True)
-    r = TestClient(app).get("/health")
+    r = TestClient(app).get("/api/health")
     assert r.status_code == 503
     assert "secreto" not in r.text
     app.dependency_overrides.clear()

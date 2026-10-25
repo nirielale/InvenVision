@@ -127,3 +127,16 @@ def sugerir(candidatas: list[Candidata]) -> Candidata | None:
     """Sugiere una candidata solo si no hay duda razonable; si no, None."""
     venc = [c for c in candidatas if c.tipo == TIPO_VENCIMIENTO and not c.ambigua]
     return venc[0] if len(venc) == 1 else None
+
+
+_LOTE = re.compile(r"\b(?:LOTE|LOT|BATCH|L)\s*[:.#\-]?\s*([A-Z0-9][A-Z0-9\-]{2,19})\b")
+
+
+def extraer_lotes(texto: str) -> list[str]:
+    """Códigos de lote tras una etiqueta (LOTE, LOT, BATCH, L). Sin etiqueta no se adivina."""
+    encontrados = []
+    for m in _LOTE.finditer((texto or "").upper()):
+        codigo = m.group(1)
+        if any(ch.isdigit() for ch in codigo) and codigo not in encontrados:
+            encontrados.append(codigo)
+    return encontrados

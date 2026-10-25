@@ -65,3 +65,11 @@ def test_texto_sin_fechas_o_vacio():
 def test_no_sugiere_si_hay_dos_vencimientos():
     c = extraer_fechas("EXP 25/04/2027 EXP 26/04/2027")
     assert sugerir(c) is None
+
+
+def test_lotes_solo_con_etiqueta():
+    from app.services.date_parser import extraer_lotes
+
+    assert extraer_lotes("LOTE: AB123 VENC 01/01/2027") == ["AB123"]
+    assert extraer_lotes("Lot 7788-X\nL#C9912") == ["7788-X", "C9912"]
+    assert extraer_lotes("PESO 500G SIN ETIQUETA A1B2C3") == []

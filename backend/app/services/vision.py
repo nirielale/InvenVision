@@ -6,7 +6,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from app.services.date_parser import extraer_fechas, sugerir
+from app.config import settings
+
+from app.services.date_parser import extraer_fechas, extraer_lotes, sugerir
 
 MAX_BYTES = 8 * 1024 * 1024
 MAX_LADO = 4000
@@ -42,6 +44,13 @@ def validar_imagen(datos: bytes) -> np.ndarray:
     return img
 
 
+def extension(datos: bytes) -> str:
+    """Extensión según la firma real del archivo (ya validado)."""
+    if datos[:3] == bytes([0xFF, 0xD8, 0xFF]):
+        return "jpg"
+    return "png" if datos[1:4] == b"PNG" else "webp"
+
+
 def preprocesar(img: np.ndarray) -> list[np.ndarray]:
     """Devuelve variantes en escala de grises para mejorar la lectura del OCR."""
     gris = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -59,7 +68,7 @@ def preprocesar(img: np.ndarray) -> list[np.ndarray]:
 
 def _localizar_tesseract() -> str | None:
     candidatos = [
-        os.environ.get("TESSERACT_CMD"),
+        settings.tesseract_cmd or os.environ.get("TESSERACT_CMD"),
         shutil.which("tesseract"),
         r"C:\Program Files\Tesseract-OCR\tesseract.exe",
         r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
@@ -103,6 +112,7 @@ def escanear(datos: bytes) -> dict:
         "texto": texto.strip(),
         "candidatas": [c.to_dict() for c in candidatas],
         "sugerida": sugerida.to_dict() if sugerida else None,
+        "lotes": extraer_lotes(texto),
         "requiere_confirmacion": True,
         "advertencias": advertencias,
     }

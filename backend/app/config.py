@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
 
+    tesseract_cmd: str = ""
+
     @property
     def database_url(self) -> URL:
         # URL.create escapa caracteres especiales de la contraseña
