@@ -95,10 +95,29 @@ def leer_texto(variantes: list[np.ndarray]) -> str:
     return "\n".join(textos)
 
 
+def confianza_media(variantes: list[np.ndarray]) -> float | None:
+    """Confianza media (0-100) de las palabras reconocidas; None si no se puede calcular."""
+    ruta = _localizar_tesseract()
+    if ruta is None:
+        return None
+    try:
+        import pytesseract
+
+        pytesseract.pytesseract.tesseract_cmd = ruta
+        confs = []
+        for v in variantes:
+            d = pytesseract.image_to_data(v, lang="spa+eng", config="--psm 6", output_type=pytesseract.Output.DICT)
+            confs += [float(c) for c, w in zip(d["conf"], d["text"]) if w.strip() and float(c) >= 0]
+        return round(sum(confs) / len(confs), 2) if confs else None
+    except Exception:  # la confianza es informativa; no debe romper el escaneo
+        return None
+
+
 def escanear(datos: bytes) -> dict:
     """Pipeline completo. No guarda nada: devuelve candidatas para confirmar."""
     img = validar_imagen(datos)
-    texto = leer_texto(preprocesar(img))
+    variantes = preprocesar(img)
+    texto = leer_texto(variantes)
     candidatas = _unicas(extraer_fechas(texto))
     sugerida = sugerir(candidatas)
     advertencias = []
@@ -110,6 +129,7 @@ def escanear(datos: bytes) -> dict:
         advertencias.append("No hay una fecha de vencimiento clara; seleccione o corrija manualmente.")
     return {
         "texto": texto.strip(),
+        "confianza": confianza_media(variantes) if texto.strip() else None,
         "candidatas": [c.to_dict() for c in candidatas],
         "sugerida": sugerida.to_dict() if sugerida else None,
         "lotes": extraer_lotes(texto),

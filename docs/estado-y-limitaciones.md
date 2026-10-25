@@ -8,15 +8,17 @@
 - Dashboard, alertas y estadísticas con datos de la base.
 - El servidor sirve el frontend y las rutas `/api` no se pisan.
 
+## Verificado contra MySQL real (solo lecturas, 2026-10-25)
+- Conexión con `invenvision` y `/api/health`; `scripts.verificar_esquema` confirma que modelos y columnas coinciden.
+- Los endpoints GET (perfil, categorías, productos, dashboard, alertas, estadísticas, historial, usuarios) responden 200 con el usuario existente.
+- No se escribió nada en la base real: las escrituras (crear producto, confirmar escaneo) solo se probaron con SQLite.
+
 ## NO verificado
-1. **Conexión real a MySQL**: aún no hay `.env` probado ni se ha ejecutado la API contra `invenvision`.
-2. **Esquema real**: `models.py` es una propuesta. Las columnas reales de `usuarios`, `productos`, `historial_deteccion`,
-   `configuracion_alertas` y la vista `vista_productos_estado` no se han contrastado; puede requerir ajustes o una migración
-   (que se propondrá antes de ejecutarse). Tampoco se verificó cómo está guardado el hash del administrador existente.
-3. **OCR con Tesseract**: no está instalado en el equipo de desarrollo; las pruebas del flujo usan un OCR simulado.
-   No hay ninguna cifra de precisión. Use `ml/evaluar_ocr.py` con fotos reales etiquetadas para medirla.
-4. **Interfaz en navegador**: los módulos JavaScript pasan la comprobación de sintaxis y se sirven correctamente, pero no se ha
-   recorrido la interfaz en un navegador real (ni la cámara, ni los gráficos, ni el diseño responsive).
+1. **Inicio de sesión real**: se desconoce la contraseña del administrador existente; el hash es bcrypt (`$2b$`), compatible con el backend.
+2. **OCR con Tesseract**: no está instalado en el equipo; las pruebas del flujo usan un OCR simulado. No hay cifra de precisión.
+   Use `ml/evaluar_ocr.py` con fotos reales etiquetadas para medirla.
+3. **Interfaz en navegador**: los módulos JavaScript pasan la comprobación de sintaxis y se sirven bien, pero no se recorrió la interfaz
+   (cámara, gráficos, diseño responsive) en un navegador real.
 
 ## Limitaciones conocidas
 - Fechas con etiqueta en la línea anterior (`VENC:` arriba, fecha abajo) se clasifican como «sin etiqueta».
@@ -24,6 +26,8 @@
 - Fechas `DD/MM` con ambos valores ≤ 12 se asumen día-mes y se marcan como ambiguas (nunca se sugieren).
 - Las alertas se muestran dentro de la aplicación; no se envían correos ni mensajes (no hay servicio externo configurado).
 - El registro público crea usuarios con rol *operador*; solo un administrador puede crear otros administradores.
+- El esquema real exige fecha de vencimiento en todo producto y no guarda precio, marca, proveedor ni SKU; esos campos se eliminaron de la API.
+- Un escaneo no confirmado vive solo como archivos en `backend/uploads/scans`; no hay registro en MySQL hasta confirmar.
 - El selector de producto del escáner muestra los primeros 100 productos.
 - No hay protección contra fuerza bruta en el login ni HTTPS: pensado para uso local.
 - La «evolución del inventario» usa la fecha de registro de los productos actuales; no es un historial de movimientos.

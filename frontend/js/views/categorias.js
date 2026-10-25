@@ -12,18 +12,18 @@ export async function categorias(root, { esActual }) {
     if (!esActual()) return;
     if (!lista.length) { zona.innerHTML = vacio("Aún no hay categorías", "tags"); return; }
     zona.innerHTML = `<div class="table-responsive"><table class="table table-hover mb-0"><thead><tr>
-      <th>Nombre</th><th>Descripción</th><th>Productos</th><th>Estado</th>${admin ? '<th class="text-end">Acciones</th>' : ""}</tr></thead><tbody>
-      ${lista.map((c) => `<tr><td class="fw-semibold">${esc(c.nombre)}</td><td>${esc(c.descripcion || "—")}</td><td>${c.total_productos}</td>
-        <td><span class="badge text-bg-${c.activa ? "success" : "secondary"}">${c.activa ? "Activa" : "Inactiva"}</span></td>
+      <th>Nombre</th><th>Productos</th>${admin ? '<th class="text-end">Acciones</th>' : ""}</tr></thead><tbody>
+      ${lista.map((c) => `<tr><td class="fw-semibold">${esc(c.nombre)}</td><td>${c.total_productos}</td>
         ${admin ? `<td class="text-end text-nowrap"><button class="btn btn-sm btn-light" data-edit="${c.id}"><i class="bi bi-pencil"></i></button>
-          ${c.activa ? `<button class="btn btn-sm btn-light text-danger" data-off="${c.id}" title="Desactivar"><i class="bi bi-slash-circle"></i></button>` : ""}</td>` : ""}</tr>`).join("")}
+          <button class="btn btn-sm btn-light text-danger" data-off="${c.id}" title="Eliminar"><i class="bi bi-trash"></i></button></td>` : ""}</tr>`).join("")}
       </tbody></table></div>`;
     const porId = Object.fromEntries(lista.map((c) => [c.id, c]));
     zona.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => formulario(porId[b.dataset.edit])));
     zona.querySelectorAll("[data-off]").forEach((b) => (b.onclick = async () => {
       const c = porId[b.dataset.off];
-      if (!(await confirmar("Desactivar categoría", `«${c.nombre}» ya no podrá usarse en productos nuevos. Los ${c.total_productos} productos existentes se conservan.`, { textoOk: "Desactivar", peligro: true }))) return;
-      try { await api(`/categorias/${c.id}`, { method: "DELETE" }); toast("Categoría desactivada"); cargar(); }
+      if (c.total_productos) { toast(`«${c.nombre}» tiene ${c.total_productos} producto(s); reasígnelos antes de eliminarla.`, "error"); return; }
+      if (!(await confirmar("Eliminar categoría", `Se eliminará «${c.nombre}». Esta acción no se puede deshacer.`, { textoOk: "Eliminar", peligro: true }))) return;
+      try { await api(`/categorias/${c.id}`, { method: "DELETE" }); toast("Categoría eliminada"); cargar(); }
       catch (e) { toast(e.message, "error"); }
     }));
   }
@@ -33,18 +33,15 @@ export async function categorias(root, { esActual }) {
       titulo: c ? "Editar categoría" : "Nueva categoría",
       cuerpo: `<form id="f" novalidate>
         <div class="mb-3"><label class="form-label" for="nombre">Nombre *</label>
-          <input class="form-control" id="nombre" required minlength="2" maxlength="100" value="${esc(c?.nombre)}"><div class="invalid-feedback">Mínimo 2 caracteres.</div></div>
-        <div class="mb-3"><label class="form-label" for="descripcion">Descripción</label>
-          <input class="form-control" id="descripcion" maxlength="255" value="${esc(c?.descripcion)}"></div>
-        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="activa" ${c?.activa === false ? "" : "checked"}>
-          <label class="form-check-label" for="activa">Activa</label></div></form>`,
+          <input class="form-control" id="nombre" required minlength="2" maxlength="80" value="${esc(c?.nombre)}"><div class="invalid-feedback">Mínimo 2 caracteres.</div></div>
+      </form>`,
       pie: `<button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" id="ok">Guardar</button>`,
     });
     const f = m.el.querySelector("#f");
     f.onsubmit = (ev) => { ev.preventDefault(); m.el.querySelector("#ok").click(); };
     m.el.querySelector("#ok").onclick = async () => {
       if (!validar(f)) return;
-      const body = { nombre: f.nombre.value.trim(), descripcion: f.descripcion.value.trim() || null, activa: f.activa.checked };
+      const body = { nombre: f.nombre.value.trim() };
       try {
         await api(c ? `/categorias/${c.id}` : "/categorias", { method: c ? "PUT" : "POST", body });
         toast(c ? "Categoría actualizada" : "Categoría creada");

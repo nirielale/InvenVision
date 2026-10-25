@@ -25,7 +25,7 @@ def db(tmp_path, monkeypatch):
     Sesion = sessionmaker(bind=engine, autoflush=False)
     s = Sesion()
     s.add_all([
-        Usuario(nombre="Admin", email="admin@test.com", password_hash=hash_password(PASSWORD), rol="admin"),
+        Usuario(nombre="Admin", email="admin@test.com", password_hash=hash_password(PASSWORD), rol="administrador"),
         Usuario(nombre="Operador", email="op@test.com", password_hash=hash_password(PASSWORD), rol="operador"),
         Categoria(nombre="Lácteos"),
         Categoria(nombre="Bebidas"),

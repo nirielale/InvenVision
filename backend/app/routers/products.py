@@ -21,9 +21,8 @@ router = APIRouter(prefix="/api/productos", tags=["Productos"])
 
 Estado = Literal["vencido", "proximo", "vigente", "sin_fecha"]
 ORDENABLES = {
-    "nombre": Producto.nombre, "sku": Producto.sku, "cantidad": Producto.cantidad,
-    "precio_costo": Producto.precio_costo, "fecha_vencimiento": Producto.fecha_vencimiento,
-    "creado_en": Producto.creado_en,
+    "nombre": Producto.nombre, "codigo_barras": Producto.codigo_barras, "cantidad": Producto.cantidad,
+    "fecha_vencimiento": Producto.fecha_vencimiento, "creado_en": Producto.creado_en,
 }
 
 
@@ -36,8 +35,8 @@ def _obtener(db: Session, pid: int) -> Producto:
 
 def _validar_categoria(db: Session, cat_id: int):
     cat = db.get(Categoria, cat_id)
-    if cat is None or not cat.activa:
-        raise HTTPException(422, "La categoría no existe o está desactivada")
+    if cat is None:
+        raise HTTPException(422, "La categoría no existe")
 
 
 def _guardar(db: Session, p: Producto):
@@ -46,7 +45,7 @@ def _guardar(db: Session, p: Producto):
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(409, "Ya existe un producto con ese SKU")
+        raise HTTPException(409, "No se pudo guardar el producto (datos duplicados o inválidos)")
 
 
 @router.get("", response_model=PaginaProductos)
@@ -58,16 +57,15 @@ def listar(
     orden: Literal["asc", "desc"] = "asc",
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    _: Usuario = Depends(usuario_actual),
+    user: Usuario = Depends(usuario_actual),
     db: Session = Depends(get_db),
 ):
-    umbral = umbral_alertas(db)
+    umbral = umbral_alertas(db, user)
     consulta = db.query(Producto).options(joinedload(Producto.categoria))
     if q:
         patron = f"%{q.strip()}%"
         consulta = consulta.filter(or_(
-            Producto.nombre.like(patron), Producto.sku.like(patron),
-            Producto.marca.like(patron), Producto.lote.like(patron),
+            Producto.nombre.like(patron), Producto.codigo_barras.like(patron), Producto.lote.like(patron),
         ))
     if categoria_id:
         consulta = consulta.filter(Producto.categoria_id == categoria_id)
@@ -88,16 +86,16 @@ def listar(
 
 
 @router.post("", response_model=ProductoOut, status_code=201)
-def crear(datos: ProductoIn, _: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+def crear(datos: ProductoIn, user: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     _validar_categoria(db, datos.categoria_id)
-    p = Producto(**datos.model_dump())
+    p = Producto(**datos.model_dump(), usuario_id=user.id)
     _guardar(db, p)
-    return producto_out(_obtener(db, p.id), umbral_alertas(db))
+    return producto_out(_obtener(db, p.id), umbral_alertas(db, user))
 
 
 @router.get("/{pid}", response_model=ProductoOut)
-def detalle(pid: int, _: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
-    return producto_out(_obtener(db, pid), umbral_alertas(db))
+def detalle(pid: int, user: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    return producto_out(_obtener(db, pid), umbral_alertas(db, user))
 
 
 @router.get("/{pid}/detecciones")
@@ -109,24 +107,24 @@ def detecciones(pid: int, _: Usuario = Depends(usuario_actual), db: Session = De
     )
     return [
         {"id": h.id, "creado_en": h.creado_en, "fecha_detectada": h.fecha_detectada,
-         "resultado": h.resultado, "confirmada": h.confirmada}
+         "resultado": "corregida" if h.corregido_manual else "confirmada"}
         for h in filas
     ]
 
 
 @router.put("/{pid}", response_model=ProductoOut)
-def editar(pid: int, datos: ProductoIn, _: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+def editar(pid: int, datos: ProductoIn, user: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     p = _obtener(db, pid)
     if datos.categoria_id != p.categoria_id:
         _validar_categoria(db, datos.categoria_id)
     for campo, valor in datos.model_dump().items():
         setattr(p, campo, valor)
     _guardar(db, p)
-    return producto_out(_obtener(db, pid), umbral_alertas(db))
+    return producto_out(_obtener(db, pid), umbral_alertas(db, user))
 
 
 @router.patch("/{pid}/stock", response_model=ProductoOut)
-def stock(pid: int, datos: StockIn, _: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+def stock(pid: int, datos: StockIn, user: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     if (datos.cantidad is None) == (datos.delta is None):
         raise HTTPException(422, "Indique 'cantidad' o 'delta' (solo uno)")
     p = _obtener(db, pid)
@@ -135,7 +133,7 @@ def stock(pid: int, datos: StockIn, _: Usuario = Depends(usuario_actual), db: Se
         raise HTTPException(422, "El stock no puede quedar negativo")
     p.cantidad = nueva
     db.commit()
-    return producto_out(_obtener(db, pid), umbral_alertas(db))
+    return producto_out(_obtener(db, pid), umbral_alertas(db, user))
 
 
 @router.delete("/{pid}", status_code=204)

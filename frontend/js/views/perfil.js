@@ -5,7 +5,7 @@ export async function perfil(root, { esActual }) {
   const [yo, cfg] = await Promise.all([api("/auth/me"), api("/config-alertas")]);
   if (!esActual()) return;
   session.setUser(yo);
-  const admin = yo.rol === "admin";
+  const admin = yo.rol === "administrador";
 
   root.innerHTML = `<div class="row g-3">
     <div class="col-lg-6"><div class="card h-100"><div class="card-header">Mi perfil</div><div class="card-body">
@@ -22,9 +22,9 @@ export async function perfil(root, { esActual }) {
         <button class="btn btn-primary">Cambiar contraseña</button></form></div></div>
       <div class="card"><div class="card-header">Configuración de alertas</div><div class="card-body">
         <form id="fa" novalidate><label class="form-label" for="dias">Días de anticipación para «por vencer»</label>
-          <div class="input-group mb-2"><input type="number" class="form-control" id="dias" required min="1" max="730" step="1" value="${cfg.dias_alerta}" ${admin ? "" : "disabled"}>
+          <div class="input-group mb-2"><input type="number" class="form-control" id="dias" required min="1" max="730" step="1" value="${cfg.dias_alerta}">
           <span class="input-group-text">días</span><div class="invalid-feedback">Entre 1 y 730.</div></div>
-          ${admin ? '<button class="btn btn-primary">Guardar configuración</button>' : '<div class="form-text">Solo un administrador puede cambiar este valor.</div>'}</form></div></div></div></div>`;
+          <button class="btn btn-primary">Guardar configuración</button></form></div></div></div></div>`;
 
   root.querySelector("#fp").onsubmit = async (ev) => {
     ev.preventDefault();
@@ -48,7 +48,6 @@ export async function perfil(root, { esActual }) {
   };
   root.querySelector("#fa").onsubmit = async (ev) => {
     ev.preventDefault();
-    if (!admin) return;
     const f = ev.target; if (!validar(f)) return;
     try { await api("/config-alertas", { method: "PUT", body: { dias_alerta: Number(f.dias.value) } }); toast("Configuración guardada"); }
     catch (e) { toast(e.message, "error"); }

@@ -31,7 +31,7 @@ export async function escaner(root, { query, esActual }) {
         <div class="col-lg-6"><div class="card h-100"><div class="card-header">2. Producto asociado (opcional)</div><div class="card-body">
           <label class="form-label" for="producto">Al confirmar, la fecha se guardará en este producto</label>
           <select id="producto" class="form-select mb-2"><option value="">— Solo registrar la detección —</option>
-          ${prods.items.map((p) => `<option value="${p.id}" ${String(p.id) === query.producto ? "selected" : ""}>${esc(p.nombre)} (${esc(p.sku)})</option>`).join("")}</select>
+          ${prods.items.map((p) => `<option value="${p.id}" ${String(p.id) === query.producto ? "selected" : ""}>${esc(p.nombre)} ${p.codigo_barras ? `(${esc(p.codigo_barras)})` : ""}</option>`).join("")}</select>
           ${prods.total > prods.items.length ? `<div class="form-text">Se muestran los primeros ${prods.items.length} de ${prods.total} productos.</div>` : ""}
           <div class="alert alert-light border mt-3 mb-3 small">Consejos: buena luz, sin reflejos, etiqueta enfocada y recta. Nada se guarda en el producto hasta que usted confirme la fecha.</div>
           <button class="btn btn-primary w-100" id="analizar" disabled><i class="bi bi-search me-1"></i>Analizar imagen</button></div></div></div>
@@ -85,6 +85,7 @@ export async function escaner(root, { query, esActual }) {
       <div class="col-lg-5"><div class="card"><div class="card-header">Imagen analizada</div><div class="card-body">
         <img src="${previewUrl}" class="scan-preview mb-3" alt="Imagen analizada">
         <div class="small text-muted mb-1">Texto reconocido por el OCR</div><div class="ocr-text">${esc(r.texto || "(no se reconoció texto)")}</div>
+        ${r.confianza != null ? `<div class="mt-2 small text-muted">Confianza media del OCR: ${r.confianza} %</div>` : ""}
         ${r.lotes?.length ? `<div class="mt-2 small">Lote(s) detectado(s): ${r.lotes.map((l) => `<span class="badge text-bg-light border">${esc(l)}</span>`).join(" ")}</div>` : ""}</div></div></div>
       <div class="col-lg-7"><div class="card"><div class="card-header">3. Confirme la fecha de vencimiento</div><div class="card-body">
         ${r.advertencias.map((a) => `<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-2"></i>${esc(a)}</div>`).join("")}
@@ -111,13 +112,13 @@ export async function escaner(root, { query, esActual }) {
       if (!form.fecha.value) return;
       const btn = root.querySelector("#confirmar"); btn.disabled = true;
       try {
-        await api(`/scan/${r.id}/confirmar`, { method: "POST", body: { fecha: form.fecha.value, producto_id: productoId ? Number(productoId) : null } });
+        await api("/scan/confirmar", { method: "POST", body: { scan_id: r.scan_id, fecha: form.fecha.value, producto_id: productoId ? Number(productoId) : null } });
         toast("Fecha confirmada y registrada");
         location.hash = productoId ? `#/productos/${productoId}` : "#/historial";
       } catch (e) { toast(e.message, "error"); btn.disabled = false; }
     };
     root.querySelector("#descartar").onclick = async () => {
-      try { await api(`/scan/${r.id}/descartar`, { method: "POST" }); toast("Detección descartada", "secondary"); paso1(); }
+      try { await api(`/scan/${r.scan_id}`, { method: "DELETE" }); toast("Detección descartada", "secondary"); paso1(); }
       catch (e) { toast(e.message, "error"); }
     };
   }

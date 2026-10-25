@@ -1,10 +1,9 @@
 from datetime import date, datetime
-from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-Rol = Literal["admin", "operador"]
+Rol = Literal["administrador", "operador"]
 
 
 def _password_valida(v: str) -> str:
@@ -65,6 +64,7 @@ class UsuarioOut(BaseModel):
     email: str
     rol: str
     activo: bool
+    negocio: str | None = None
     creado_en: datetime | None = None
 
 
@@ -75,9 +75,12 @@ class TokenOut(BaseModel):
 
 
 class CategoriaIn(BaseModel):
-    nombre: str = Field(min_length=2, max_length=100)
-    descripcion: str | None = Field(default=None, max_length=255)
-    activa: bool = True
+    nombre: str = Field(min_length=2, max_length=80)
+
+    @field_validator("nombre")
+    @classmethod
+    def _strip(cls, v):
+        return v.strip()
 
 
 class CategoriaOut(CategoriaIn):
@@ -88,19 +91,22 @@ class CategoriaOut(CategoriaIn):
 
 class ProductoIn(BaseModel):
     nombre: str = Field(min_length=2, max_length=150)
-    sku: str = Field(min_length=1, max_length=50)
     categoria_id: int
-    marca: str | None = Field(default=None, max_length=100)
-    lote: str | None = Field(default=None, max_length=60)
+    codigo_barras: str | None = Field(default=None, max_length=50)
+    lote: str | None = Field(default=None, max_length=50)
     cantidad: int = Field(ge=0, le=10_000_000)
-    precio_costo: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
-    proveedor: str | None = Field(default=None, max_length=150)
-    fecha_vencimiento: date | None = None
+    fecha_vencimiento: date
 
-    @field_validator("nombre", "sku")
+    @field_validator("nombre")
     @classmethod
     def _strip(cls, v):
         return v.strip()
+
+    @field_validator("codigo_barras", "lote")
+    @classmethod
+    def _vacio_a_none(cls, v):
+        v = (v or "").strip()
+        return v or None
 
 
 class StockIn(BaseModel):
@@ -111,14 +117,11 @@ class StockIn(BaseModel):
 class ProductoOut(BaseModel):
     id: int
     nombre: str
-    sku: str
     categoria_id: int
     categoria: str
-    marca: str | None
+    codigo_barras: str | None
     lote: str | None
     cantidad: int
-    precio_costo: Decimal
-    proveedor: str | None
     fecha_vencimiento: date | None
     estado: str
     dias_restantes: int | None
@@ -139,5 +142,6 @@ class ConfigAlertasIn(BaseModel):
 
 
 class ConfirmarScanIn(BaseModel):
-    fecha: date | None = None
+    scan_id: str = Field(pattern=r"^\d+_[0-9a-f]{32}$")
+    fecha: date
     producto_id: int | None = None

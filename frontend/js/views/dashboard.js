@@ -1,5 +1,5 @@
 import { api } from "../api.js";
-import { COLORES, badgeEstado, diasTexto, esc, fmtFecha, fmtFechaHora, fmtMoneda, kpi, vacio } from "../ui.js";
+import { COLORES, badgeEstado, diasTexto, esc, fmtFecha, fmtFechaHora, kpi, vacio } from "../ui.js";
 
 const ETIQUETA_RESULTADO = { pendiente: "Pendiente", confirmada: "Confirmada", corregida: "Corregida", descartada: "Descartada", ilegible: "Ilegible" };
 
@@ -19,7 +19,6 @@ export async function dashboard(root, { esActual }) {
     </div>
     <div class="row g-3 mb-3">
       <div class="col-md-6 col-xl-3">${kpi("stack", "i-green", d.unidades_en_stock.toLocaleString("es-PE"), "Unidades en stock")}</div>
-      <div class="col-md-6 col-xl-3">${kpi("currency-dollar", "i-green", fmtMoneda(d.valor_inventario), "Valor del inventario (costo)")}</div>
     </div>
     <div class="row g-3 mb-3">
       <div class="col-lg-4"><div class="card h-100"><div class="card-header">Estado del inventario</div>
@@ -39,7 +38,7 @@ export async function dashboard(root, { esActual }) {
         ${d.actividad.length ? `<ul class="list-group list-group-flush">${d.actividad.map((a) => `
           <li class="list-group-item d-flex justify-content-between align-items-start">
             <div><div class="fw-semibold">${ETIQUETA_RESULTADO[a.resultado] || esc(a.resultado)}${a.fecha_detectada ? ` · ${fmtFecha(a.fecha_detectada)}` : ""}</div>
-              <div class="small text-muted">${esc(a.usuario || "—")}${a.producto ? ` · ${esc(a.producto)}` : ""}</div></div>
+              <div class="small text-muted">${a.producto ? esc(a.producto) : "Sin producto asociado"}</div></div>
             <small class="text-muted text-nowrap">${fmtFechaHora(a.creado_en)}</small></li>`).join("")}</ul>`
           : vacio("Aún no hay escaneos", "camera")}</div></div>
     </div>`;

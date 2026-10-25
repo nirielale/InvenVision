@@ -4,7 +4,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import ROOT_DIR
-from app.models import ConfiguracionAlertas, Producto
+from app.models import ConfiguracionAlertas, Producto, Usuario
 from app.schemas import ProductoOut
 from app.services.expiry import clasificar
 
@@ -12,8 +12,8 @@ UPLOAD_DIR = ROOT_DIR / "backend" / "uploads"
 DIAS_ALERTA_DEFECTO = 30
 
 
-def umbral_alertas(db: Session) -> int:
-    cfg = db.query(ConfiguracionAlertas).order_by(ConfiguracionAlertas.id).first()
+def umbral_alertas(db: Session, user: Usuario) -> int:
+    cfg = db.query(ConfiguracionAlertas).filter(ConfiguracionAlertas.usuario_id == user.id).first()
     return cfg.dias_alerta if cfg else DIAS_ALERTA_DEFECTO
 
 
@@ -37,9 +37,8 @@ def ruta_archivo(relativa: str | None) -> Path | None:
 def producto_out(p: Producto, umbral: int, hoy: date | None = None) -> ProductoOut:
     estado, dias = clasificar(p.fecha_vencimiento, umbral, hoy)
     return ProductoOut(
-        id=p.id, nombre=p.nombre, sku=p.sku, categoria_id=p.categoria_id,
-        categoria=p.categoria.nombre, marca=p.marca, lote=p.lote, cantidad=p.cantidad,
-        precio_costo=p.precio_costo, proveedor=p.proveedor,
+        id=p.id, nombre=p.nombre, categoria_id=p.categoria_id,
+        categoria=p.categoria.nombre, codigo_barras=p.codigo_barras, lote=p.lote, cantidad=p.cantidad,
         fecha_vencimiento=p.fecha_vencimiento, estado=estado, dias_restantes=dias,
         tiene_foto=bool(p.imagen), creado_en=p.creado_en, actualizado_en=p.actualizado_en,
     )

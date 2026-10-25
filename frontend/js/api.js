@@ -14,7 +14,7 @@ export const session = {
   set(token, user) { escribir(TOKEN_KEY, token); escribir(USER_KEY, JSON.stringify(user)); },
   setUser(user) { escribir(USER_KEY, JSON.stringify(user)); },
   clear() { escribir(TOKEN_KEY, null); escribir(USER_KEY, null); },
-  get isAdmin() { return this.user?.rol === "admin"; },
+  get isAdmin() { return this.user?.rol === "administrador"; },
 };
 
 export class ApiError extends Error {

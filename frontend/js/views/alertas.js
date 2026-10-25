@@ -25,7 +25,7 @@ export async function alertas(root, { esActual }) {
     if (!r.items.length) { zona.innerHTML = vacio("No hay productos con fecha de vencimiento en esta categoría", "bell-slash"); return; }
     zona.innerHTML = `<div class="table-responsive"><table class="table table-hover mb-0"><thead><tr>
       <th>Producto</th><th>Categoría</th><th>Lote</th><th>Stock</th><th>Vence</th><th>Días restantes</th><th>Estado</th></tr></thead><tbody>
-      ${r.items.map((p) => `<tr><td><a class="fw-semibold text-decoration-none" href="#/productos/${p.id}">${esc(p.nombre)}</a><div class="small text-muted">${esc(p.sku)}</div></td>
+      ${r.items.map((p) => `<tr><td><a class="fw-semibold text-decoration-none" href="#/productos/${p.id}">${esc(p.nombre)}</a><div class="small text-muted">${esc(p.codigo_barras || "")}</div></td>
         <td>${esc(p.categoria)}</td><td>${esc(p.lote || "—")}</td><td>${p.cantidad}</td><td>${fmtFecha(p.fecha_vencimiento)}</td>
         <td>${diasTexto(p.dias_restantes)}</td><td>${badgeEstado(p.estado)}</td></tr>`).join("")}</tbody></table></div>`;
     zona.appendChild(paginacion(r, (p) => { page = p; cargar(); }));

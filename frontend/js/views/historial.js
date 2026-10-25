@@ -2,8 +2,7 @@ import { api, blobUrl } from "../api.js";
 import { errorBox, esc, fmtFecha, fmtFechaHora, modal, paginacion, spinner, toast, vacio } from "../ui.js";
 
 const RESULTADOS = {
-  pendiente: ["secondary", "Pendiente"], confirmada: ["success", "Confirmada"], corregida: ["info", "Corregida"],
-  descartada: ["dark", "Descartada"], ilegible: ["warning text-dark", "Ilegible"],
+  confirmada: ["success", "Confirmada"], corregida: ["info", "Corregida a mano"],
 };
 
 export async function historial(root, { esActual }) {
@@ -18,14 +17,14 @@ export async function historial(root, { esActual }) {
     if (!esActual()) return;
     if (!r.items.length) { zona.innerHTML = vacio("No hay detecciones registradas", "camera"); return; }
     zona.innerHTML = `<div class="table-responsive"><table class="table table-hover mb-0"><thead><tr>
-      <th>Fecha</th><th>Imagen</th><th>Texto OCR</th><th>Fecha detectada</th><th>Resultado</th><th>Producto</th><th>Usuario</th><th></th></tr></thead><tbody>
+      <th>Fecha</th><th>Imagen</th><th>Texto OCR</th><th>Fecha detectada</th><th>Resultado</th><th>Producto</th><th>Confianza OCR</th><th></th></tr></thead><tbody>
       ${r.items.map((h) => { const [c, t] = RESULTADOS[h.resultado] || ["secondary", h.resultado];
         return `<tr><td class="text-nowrap">${fmtFechaHora(h.creado_en)}</td>
         <td>${h.tiene_imagen ? `<button class="btn btn-sm btn-outline-secondary" data-img="${h.id}"><i class="bi bi-image"></i></button>` : "—"}</td>
         <td style="max-width:280px" class="text-truncate" title="${esc(h.texto_ocr || "")}">${esc((h.texto_ocr || "—").replace(/\s+/g, " "))}</td>
         <td>${fmtFecha(h.fecha_detectada)}</td>
-        <td><span class="badge text-bg-${c}">${t}</span> ${h.confirmada ? '<i class="bi bi-check2-circle text-success" title="Confirmada por el usuario"></i>' : ""}</td>
-        <td>${h.producto_id ? `<a href="#/productos/${h.producto_id}">${esc(h.producto)}</a>` : "—"}</td><td>${esc(h.usuario || "—")}</td>
+        <td><span class="badge text-bg-${c}">${t}</span></td>
+        <td>${h.producto_id ? `<a href="#/productos/${h.producto_id}">${esc(h.producto)}</a>` : "—"}</td><td>${h.confianza_ocr == null ? "—" : h.confianza_ocr + " %"}</td>
         <td><button class="btn btn-sm btn-light" data-det="${h.id}">Detalle</button></td></tr>`; }).join("")}</tbody></table></div>`;
     zona.appendChild(paginacion(r, (p) => { page = p; cargar(); }));
     const porId = Object.fromEntries(r.items.map((h) => [h.id, h]));

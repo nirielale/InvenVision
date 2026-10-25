@@ -12,21 +12,21 @@ router = APIRouter(prefix="/api/categorias", tags=["Categorías"])
 
 
 def _out(c: Categoria, total: int) -> CategoriaOut:
-    return CategoriaOut(
-        id=c.id, nombre=c.nombre, descripcion=c.descripcion, activa=c.activa, total_productos=total
-    )
+    return CategoriaOut(id=c.id, nombre=c.nombre, total_productos=total)
+
+
+def _total(db: Session, cat_id: int) -> int:
+    return db.query(func.count(Producto.id)).filter(Producto.categoria_id == cat_id).scalar()
 
 
 @router.get("", response_model=list[CategoriaOut])
-def listar(solo_activas: bool = False, _: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+def listar(_: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     q = (
         db.query(Categoria, func.count(Producto.id))
         .outerjoin(Producto, Producto.categoria_id == Categoria.id)
         .group_by(Categoria.id)
         .order_by(Categoria.nombre)
     )
-    if solo_activas:
-        q = q.filter(Categoria.activa.is_(True))
     return [_out(c, n) for c, n in q.all()]
 
 
@@ -41,7 +41,7 @@ def _guardar(db: Session, cat: Categoria):
 
 @router.post("", response_model=CategoriaOut, status_code=201)
 def crear(datos: CategoriaIn, _: Usuario = Depends(requiere_admin), db: Session = Depends(get_db)):
-    cat = Categoria(nombre=datos.nombre.strip(), descripcion=datos.descripcion, activa=datos.activa)
+    cat = Categoria(nombre=datos.nombre)
     _guardar(db, cat)
     return _out(cat, 0)
 
@@ -51,19 +51,18 @@ def editar(cat_id: int, datos: CategoriaIn, _: Usuario = Depends(requiere_admin)
     cat = db.get(Categoria, cat_id)
     if cat is None:
         raise HTTPException(404, "Categoría no encontrada")
-    cat.nombre, cat.descripcion, cat.activa = datos.nombre.strip(), datos.descripcion, datos.activa
+    cat.nombre = datos.nombre
     _guardar(db, cat)
-    total = db.query(func.count(Producto.id)).filter(Producto.categoria_id == cat.id).scalar()
-    return _out(cat, total)
+    return _out(cat, _total(db, cat.id))
 
 
-@router.delete("/{cat_id}", response_model=CategoriaOut)
-def desactivar(cat_id: int, _: Usuario = Depends(requiere_admin), db: Session = Depends(get_db)):
-    """No borra la categoría: la desactiva para conservar los productos asociados."""
+@router.delete("/{cat_id}", status_code=204)
+def eliminar(cat_id: int, _: Usuario = Depends(requiere_admin), db: Session = Depends(get_db)):
+    """Solo elimina categorías sin productos; nunca toca productos existentes."""
     cat = db.get(Categoria, cat_id)
     if cat is None:
         raise HTTPException(404, "Categoría no encontrada")
-    cat.activa = False
+    if _total(db, cat.id):
+        raise HTTPException(409, "La categoría tiene productos asociados; reasígnelos antes de eliminarla")
+    db.delete(cat)
     db.commit()
-    total = db.query(func.count(Producto.id)).filter(Producto.categoria_id == cat.id).scalar()
-    return _out(cat, total)

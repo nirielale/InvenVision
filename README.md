@@ -7,12 +7,12 @@ Sistema de gestión de inventario con detección de fechas de vencimiento median
 - **Frontend:** HTML, CSS, JavaScript, Bootstrap 5, Chart.js (se sirve desde el mismo servidor FastAPI)
 - **Estructura:** `backend/` (API), `frontend/` (interfaz), `ml/` (evaluación del OCR), `database/`, `docs/`
 
-> **Estado:** prototipo. Lea [`docs/estado-y-limitaciones.md`](docs/estado-y-limitaciones.md) antes de usarlo: los modelos del backend
-> están pendientes de conciliar con el esquema real de MySQL y el OCR aún no se evaluó con fotos reales.
+> **Estado:** prototipo. Lea [`docs/estado-y-limitaciones.md`](docs/estado-y-limitaciones.md) antes de usarlo: el OCR aún no se evaluó
+> con fotos reales y la interfaz no se ha recorrido en un navegador.
 
 ## Requisitos (Windows)
 1. Python 3.11+
-2. MySQL en ejecución (el de XAMPP usa el puerto 3307 según su `my.ini`; `MySQL93` usa 3306)
+2. MySQL en ejecución (servicio `MySQL93`, puerto 3306)
 3. [Tesseract OCR para Windows](https://github.com/UB-Mannheim/tesseract/wiki) con el idioma **Spanish** (necesario solo para escanear)
 4. Conexión a Internet en el navegador (Bootstrap, iconos y Chart.js se cargan desde CDN)
 
@@ -30,9 +30,9 @@ En `.env` complete `DB_PORT`, `DB_USER`, `DB_PASSWORD` y `JWT_SECRET` (genere un
 El archivo `.env` está en `.gitignore`: no se sube a Git.
 
 ## Base de datos
-La base `invenvision` ya existe; **no se crea ni se recrea desde la aplicación**. Los modelos de `backend/app/models.py` son una
-propuesta basada en los nombres de tablas; antes de usar la aplicación sobre sus datos reales debe contrastarse con el esquema real
-(`mysqldump --no-data`, ver `docs/base-de-datos.md`).
+La base `invenvision` ya existe; **no se crea ni se recrea desde la aplicación**. Los modelos coinciden con el esquema real
+(ver `docs/base-de-datos.md`). Compruébelo con `cd backend; python -m scripts.verificar_esquema` (solo lectura).
+Se recomienda un usuario MySQL con permisos `SELECT, INSERT, UPDATE, DELETE` únicamente sobre `invenvision`.
 
 ## Crear un administrador (de forma segura)
 ```powershell
@@ -59,7 +59,7 @@ Las pruebas usan SQLite en memoria; **no tocan MySQL**. La prueba de OCR real se
 ## Datos de demostración (opcional)
 ```powershell
 cd backend
-python -m scripts.datos_demo --confirmar            # agrega productos con SKU DEMO-xxx
+python -m scripts.datos_demo --confirmar            # agrega productos con código DEMO-xxx
 python -m scripts.datos_demo --confirmar --quitar   # quita solo los DEMO-xxx
 ```
 

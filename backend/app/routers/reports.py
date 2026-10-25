@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models import Categoria, ConfiguracionAlertas, HistorialDeteccion, Producto, Usuario
 from app.routers.common import producto_out, umbral_alertas
 from app.schemas import ConfigAlertasIn
-from app.security import requiere_admin, usuario_actual
+from app.security import usuario_actual
 from app.services.expiry import (
     ESTADO_PROXIMO, ESTADO_SIN_FECHA, ESTADO_VENCIDO, ESTADO_VIGENTE, filtro_estado,
 )
@@ -37,15 +37,16 @@ def _meses_atras(hoy: date, n: int) -> list[date]:
 
 
 @router.get("/config-alertas")
-def ver_config(_: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
-    return {"dias_alerta": umbral_alertas(db)}
+def ver_config(user: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    return {"dias_alerta": umbral_alertas(db, user)}
 
 
 @router.put("/config-alertas")
-def guardar_config(datos: ConfigAlertasIn, _: Usuario = Depends(requiere_admin), db: Session = Depends(get_db)):
-    cfg = db.query(ConfiguracionAlertas).order_by(ConfiguracionAlertas.id).first()
+def guardar_config(datos: ConfigAlertasIn, user: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    """La configuración es por usuario: cada quien guarda la suya."""
+    cfg = db.query(ConfiguracionAlertas).filter(ConfiguracionAlertas.usuario_id == user.id).first()
     if cfg is None:
-        cfg = ConfiguracionAlertas(dias_alerta=datos.dias_alerta)
+        cfg = ConfiguracionAlertas(usuario_id=user.id, dias_alerta=datos.dias_alerta)
         db.add(cfg)
     cfg.dias_alerta = datos.dias_alerta
     db.commit()
@@ -57,11 +58,11 @@ def alertas(
     estado: Literal["vencido", "proximo", "vigente"] | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    _: Usuario = Depends(usuario_actual),
+    user: Usuario = Depends(usuario_actual),
     db: Session = Depends(get_db),
 ):
     """Productos con fecha, ordenados por urgencia. Las notificaciones son solo dentro de la aplicación."""
-    umbral = umbral_alertas(db)
+    umbral = umbral_alertas(db, user)
     q = db.query(Producto).options(joinedload(Producto.categoria)).filter(Producto.fecha_vencimiento.isnot(None))
     if estado:
         q = q.filter(filtro_estado(Producto.fecha_vencimiento, estado, umbral))
@@ -75,8 +76,8 @@ def alertas(
 
 
 @router.get("/dashboard")
-def dashboard(_: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
-    umbral = umbral_alertas(db)
+def dashboard(user: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    umbral = umbral_alertas(db, user)
     hoy = date.today()
     por_estado = _por_estado(db, umbral)
     proximos = (
@@ -85,20 +86,19 @@ def dashboard(_: Usuario = Depends(usuario_actual), db: Session = Depends(get_db
         .order_by(Producto.fecha_vencimiento).limit(8).all()
     )
     actividad = (
-        db.query(HistorialDeteccion).options(joinedload(HistorialDeteccion.usuario), joinedload(HistorialDeteccion.producto))
+        db.query(HistorialDeteccion).options(joinedload(HistorialDeteccion.producto))
         .order_by(HistorialDeteccion.creado_en.desc()).limit(8).all()
     )
     return {
         "umbral_dias": umbral,
         "total_productos": sum(por_estado.values()),
         "unidades_en_stock": db.query(func.coalesce(func.sum(Producto.cantidad), 0)).scalar(),
-        "valor_inventario": float(db.query(func.coalesce(func.sum(Producto.cantidad * Producto.precio_costo), 0)).scalar()),
         "por_estado": por_estado,
         "proximos": [producto_out(p, umbral, hoy).model_dump(mode="json") for p in proximos],
         "actividad": [
-            {"id": h.id, "creado_en": h.creado_en.isoformat() if h.creado_en else None, "resultado": h.resultado,
+            {"id": h.id, "creado_en": h.creado_en.isoformat() if h.creado_en else None,
+             "resultado": "corregida" if h.corregido_manual else "confirmada",
              "fecha_detectada": h.fecha_detectada.isoformat() if h.fecha_detectada else None,
-             "usuario": h.usuario.nombre if h.usuario else None,
              "producto": h.producto.nombre if h.producto else None}
             for h in actividad
         ],
@@ -106,8 +106,8 @@ def dashboard(_: Usuario = Depends(usuario_actual), db: Session = Depends(get_db
 
 
 @router.get("/estadisticas")
-def estadisticas(meses: int = Query(6, ge=1, le=24), _: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
-    umbral = umbral_alertas(db)
+def estadisticas(meses: int = Query(6, ge=1, le=24), user: Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    umbral = umbral_alertas(db, user)
     hoy = date.today()
     por_categoria = [
         {"categoria": nombre, "productos": n, "unidades": int(u)}
