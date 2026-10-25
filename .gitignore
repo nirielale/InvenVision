@@ -1,0 +1,22 @@
+# Secretos
+.env
+*.env
+!.env.example
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Archivos subidos / generados
+backend/uploads/
+ml/datasets/
+*.log
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
